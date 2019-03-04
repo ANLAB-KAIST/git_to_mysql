@@ -1,0 +1,12 @@
+[database]
+type = #dbtype
+username = #username
+password = #password
+host = #host
+schema = #schema
+
+[git]
+path = #path
+
+[debug]
+enable = true
