@@ -7,6 +7,7 @@ schema = #schema
 
 [git]
 path = #path
+reference = #branch or tag
 
 [debug]
 enable = true
