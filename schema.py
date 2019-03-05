@@ -3,6 +3,7 @@ from sqlalchemy.pool import *
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import config
+import datetime
 
 DB_HOST = config.get("database.host")
 DB_USER = config.get("database.username")
@@ -39,12 +40,13 @@ class CommitDiff(Base):
     id = Column(DB_STRING_ID_TYPE, primary_key=True)
     message = Column(Text, nullable=False)
     diff = Column(Text, nullable=True)
+    create_at = Column(DateTime, nullable=False, index=True)
 
-    def __init__(self, id: str, message: str, diff: str):
+    def __init__(self, id: str, message: str, diff: str, create_at: datetime.datetime):
         self.id = id
         self.message = message
         self.diff = diff
-
+        self.create_at = create_at
 
 _session = None
 

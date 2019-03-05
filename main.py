@@ -1,6 +1,7 @@
 import config
 import pygit2
 import schema
+import datetime
 
 
 def main():
@@ -23,8 +24,13 @@ def main():
             # Put old one first, new one later
             # For GIT_SORT_TOPOLOGICAL, it is cur-prev and for REVERSE, prev-cur
             diff = repo.diff(commit, prev_commit)
-            row = schema.CommitDiff(str(commit.id), str(commit.message), str(diff.patch))
+            tzone = datetime.timezone(datetime.timedelta(minutes=commit.commit_time_offset))
+            date = datetime.datetime.fromtimestamp(commit.commit_time, tzone)
+            # print(commit.id, date, commit.commit_time, datetime.datetime.fromtimestamp(commit.commit_time).isoformat())
+
+            row = schema.CommitDiff(str(commit.id), str(commit.message), str(diff.patch), date)
             session.add(row)
+
 
             counter += 1
             if counter >= 1000:
