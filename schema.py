@@ -1,8 +1,7 @@
 from sqlalchemy import *
 from sqlalchemy.pool import *
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 import config
 
 DB_HOST = config.get("database.host")
@@ -16,17 +15,51 @@ if DB_TYPE == "sqlite":
     DB_UUID_TYPE = Integer
     DB_STRING_ID_TYPE = Text
     DB_PATH_STRING = "{type}:///{schema}.db"
+    DB_TEXT_TYPE = Text
 elif DB_TYPE == "mysql":
-    from sqlalchemy.dialects.mysql import BIGINT
+    from sqlalchemy.dialects.mysql import BIGINT, LONGTEXT
     DB_UUID_TYPE = BIGINT(unsigned=True)
     DB_STRING_ID_TYPE = VARCHAR(length=160)
     DB_PATH_STRING = "{type}://{user}:{pass}@{host}/{schema}?charset=utf8mb4"
+    DB_TEXT_TYPE = LONGTEXT
 elif DB_TYPE == "memory":
     DB_UUID_TYPE = Integer
     DB_STRING_ID_TYPE = Text
     DB_PATH_STRING = "sqlite://"
+    DB_TEXT_TYPE = Text
 else:
     print("Not supported db type %s" % DB_TYPE)
     exit(1)
 
 Base = declarative_base()
+
+
+class CommitDiff(Base):
+    __tablename__ = "commit_diff"
+    id = Column(DB_STRING_ID_TYPE, primary_key=True)
+    message = Column(Text, nullable=False)
+    diff = Column(Text, nullable=True)
+
+    def __init__(self, id: str, message: str, diff: str):
+        self.id = id
+        self.message = message
+        self.diff = diff
+
+
+_session = None
+
+
+def get_session() -> Session:
+    return _session()
+
+
+def init_database():
+    params = {"type": DB_TYPE, "user": DB_USER, "pass":DB_PASS, "host":DB_HOST, "schema": DB_SCHEMA}
+    engine = create_engine(DB_PATH_STRING.format(**params), encoding="utf8",
+                           pool_size=16, max_overflow=-1,
+                           poolclass=QueuePool, pool_recycle=3600)
+
+    Base.metadata.create_all(engine)
+    global _session
+    _session = sessionmaker(bind=engine, autocommit=True, autoflush=True)
+    return True
