@@ -18,7 +18,6 @@ def main():
 
     counter = 0
 
-    session.begin()
     for commit in iter:
         if prev_commit is not None:
             # Put old one first, new one later
@@ -28,19 +27,34 @@ def main():
             date = datetime.datetime.fromtimestamp(commit.commit_time, tzone)
             # print(commit.id, date, commit.commit_time, datetime.datetime.fromtimestamp(commit.commit_time).isoformat())
 
-            row = schema.CommitDiff(str(commit.id), str(commit.message), str(diff.patch), date)
-            session.add(row)
+            id = str(commit.id)
+            msg = str(commit.message)
+            if diff.patch is not None:
+                diff = str(diff.patch)
 
+            try:
+                session.begin()
+                row = schema.CommitDiff(id, msg, diff, date)
+                session.add(row)
+                session.commit()
+            except Exception as e:
+                new_diff = "Exception occured: " + str(e)
+                if diff is None:
+                    new_diff += "\nDiff is None"
+                else:
+                    new_diff += "\nDiff length is " + str(len(diff))
+                print(id, msg)
+                session.rollback()
+                session.begin()
+                row = schema.CommitDiff(id, msg, new_diff, date)
+                session.add(row)
+                session.commit()
 
             counter += 1
             if counter >= 1000:
                 counter = 0
-                print("1000 Updates are done. committing.")
-                session.commit()
-                session.begin()
-
+                print("1000 Updates are done.")
         prev_commit = commit
-    session.commit()
     session.close()
 
 
