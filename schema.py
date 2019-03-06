@@ -37,16 +37,23 @@ Base = declarative_base()
 
 class CommitDiff(Base):
     __tablename__ = "commit_diff"
-    id = Column(DB_STRING_ID_TYPE, primary_key=True)
-    message = Column(Text, nullable=False)
-    diff = Column(Text, nullable=True)
+    child = Column(DB_STRING_ID_TYPE, primary_key=True)
+    parent = Column(DB_STRING_ID_TYPE, primary_key=True)
+    message = Column(DB_TEXT_TYPE, nullable=False)
+    diff = Column(DB_TEXT_TYPE, nullable=True)
+    insertions = Column(DB_UUID_TYPE, nullable=False)
+    deletions = Column(DB_UUID_TYPE, nullable=False)
     create_at = Column(DateTime, nullable=False, index=True)
 
-    def __init__(self, id: str, message: str, diff: str, create_at: datetime.datetime):
-        self.id = id
+    def __init__(self, child_id: str, parent_id: str, message: str, diff: str, insertions: int, deletions: int, create_at: datetime.datetime):
+        self.child = child_id
+        self.parent = parent_id
         self.message = message
         self.diff = diff
+        self.insertions = insertions
+        self.deletions = deletions
         self.create_at = create_at
+
 
 _session = None
 
