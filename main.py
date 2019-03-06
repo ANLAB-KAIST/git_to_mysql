@@ -9,8 +9,8 @@ from sqlalchemy.exc import IntegrityError
 from concurrent import futures
 
 
-def repo_job(thread_id, current_commit_id, child_commit_id) -> (list, tuple or None):
-    repo = pygit2.Repository(config.get("git.path").format(str(thread_id)))
+def repo_job(repo_path, current_commit_id, child_commit_id) -> (list, tuple or None):
+    repo = pygit2.Repository(repo_path)
     current_commit = repo.get(current_commit_id)
     ret_tuple = None
     if child_commit_id is not None:
@@ -44,9 +44,10 @@ class SharedStat:
         self.finished = False
         self.thread_count = multiprocessing.cpu_count()
         self.pool = futures.ProcessPoolExecutor()
+        self.repo_path = config.get("git.path")
 
 
-def worker(thread_id, session, queue, shared):
+def worker(session, queue, shared):
     with shared.lock:
         print(threading.current_thread().name)
 
@@ -68,7 +69,7 @@ def worker(thread_id, session, queue, shared):
         if shared.finished:
             break
 
-        ret_future = shared.pool.submit(repo_job, thread_id, current_commit_id, child_commit_id)
+        ret_future = shared.pool.submit(repo_job, shared.repo_path, current_commit_id, child_commit_id)
         (parent_list, ret_tuple) = ret_future.result()
         if ret_tuple is not None:
 
@@ -115,8 +116,7 @@ def worker(thread_id, session, queue, shared):
 
 class Worker(threading.Thread):
 
-    def __init__(self, thread_id: int, work_queue: deque, shared: SharedStat):
-        self.thread_id = thread_id
+    def __init__(self, work_queue: deque, shared: SharedStat):
         self.queue = work_queue
         self.shared = shared
         threading.Thread.__init__(self)
@@ -124,15 +124,15 @@ class Worker(threading.Thread):
     def run(self):
         session = schema.get_session()
         try:
-            worker(self.thread_id, session, self.queue, self.shared)
+            worker(session, self.queue, self.shared)
         except Exception as e:
-            print("Criticial Error: " + str(e))
+            print("Critical Error: " + str(e))
         session.close()
 
 
 def main():
     schema.init_database()
-    repo = pygit2.Repository(config.get("git.path").format(""))
+    repo = pygit2.Repository(config.get("git.path"))
     reference = repo.branches.get(config.get("git.reference"))
     print(reference.target, type(reference))
 
@@ -143,10 +143,8 @@ def main():
     shared_stat = SharedStat()
 
     thread_list = []
-    thread_id = 0
     for i in range(shared_stat.thread_count):
-        worker = Worker(thread_id, bfs_queue, shared_stat)
-        thread_id += 1
+        worker = Worker(bfs_queue, shared_stat)
         worker.start()
         thread_list.append(worker)
 
